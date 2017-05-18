@@ -2,10 +2,14 @@ package FirmwareUpgradeMain;
 
 import gnu.io.*;
 import java.awt.Color;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.TooManyListenersException;
@@ -32,12 +36,23 @@ public class CommunicationClass implements SerialPortEventListener
 	private boolean bConnected = false;
 	private boolean isDataReceive = false;
 	private byte	key = 0;
+	private byte rcv_state = 0;
+	private byte rcv_cmd = 0;
+	private byte byte_rcv = 0;
+	private byte device = 0;
+	private byte name_length = 0;
+	private byte msg_size = 0;
+	private byte bufferChecksum = 0;
+	/* Public value*/
+	public int flash_size[] = {0,0,0,0,0,0,0,0,0,0} ;
+	public StringBuilder[] deviceName = new StringBuilder[10];
 	//the timeout value for connecting with the port
 	final static int TIMEOUT = 2000;
 	
 	//a string for recording what goes on in the program
 	//this string is written to the GUI
 	String logText = "";
+	String deviceText = "";
 	
 	@SuppressWarnings("restriction")
 	private void setSerialPortParameters() throws IOException {
@@ -190,10 +205,137 @@ public class CommunicationClass implements SerialPortEventListener
 	        {
 	        	
 	            byte singleData = (byte)input.read();
+	            switch(rcv_state)
+	            {
+		            case 0:
+		            	if(singleData == 0x04)
+		            	{
+		            		bufferChecksum += singleData;
+		            		rcv_state++;
+		            		logText = "0x04 receive";
+		    		        window.textArea.append(logText + "\n");
+		            	}
+		            	break;
+		            case 1:
+		            	if(singleData == 0x7C)
+		            	{
+		            		bufferChecksum += singleData;
+		            		rcv_state++;
+		            		logText = "0x7C receive";
+		    		        window.textArea.append(logText + "\n");
+		            	}
+		            	else
+		            		rcv_state = 0;
+		            	break;
+		            case 2 :
+		            	bufferChecksum += singleData;
+		            	rcv_cmd = singleData;
+		            	rcv_state ++;
+		            	logText = "Command Receive";
+	    		        window.textArea.append(logText + "\n");
+		            	break;
+		            case 3:
+		            	switch (rcv_cmd)
+		            	{
+			            	case 0x01: /* Flash size CMD*/
+			            		byte_rcv++;
+			            		bufferChecksum += singleData;
+			            		switch(byte_rcv)
+			            		{
+			            		case 1:
+			            			msg_size = singleData;
+			            			break;
+			            		case 2:
+			            			device = singleData;
+			            			break;
+			            		case 3:
+			            			flash_size[device] = singleData << 8 & 0xFF00;
+			            			break;
+			            		case 4:
+			            			flash_size[device] = singleData & 0x00FF;
+			            			rcv_state ++;
+			            			byte_rcv=0;
+			            			rcv_cmd = (byte) 0xFF;
+			            			device = (byte) 0xFF;
+			            			break;
+			            		}
+			            		break;
+			            	case 0x11 : /* Name Attribution CMD*/
+			            		byte_rcv++;
+			            		bufferChecksum += singleData;
+			            		if(byte_rcv == 1)
+			            			name_length = (byte) (singleData - 1);
+			            		else if(byte_rcv == 2)
+			            		{
+			            			device = singleData;
+			            			deviceName[device].append("");
+			            		}
+			            		else if(byte_rcv > 2 && byte_rcv <= name_length + 1)
+			            		{ 
+			            			deviceName[device].append(singleData);	
+				    		       
+			            		}
+			            		else
+			            		{
+			    		        	logText = "Name receive";
+				    		        window.textArea.append(logText + "\n");
+				    		        rcv_state ++;
+			            			byte_rcv=0;
+			            			device = (byte) 0xFF;
+			            			rcv_cmd = (byte) 0xFF;	
+			            		}
+			            		
+			            		break;
+			            	case 0x21: /* Erase CMD*/
+			            		rcv_state = (byte) 0x99;
+			            		break;
+			            	case 0x31 :/* Write CMD*/
+			            		rcv_state = (byte) 0x99;
+			            		break;
+			            	case 0x41: /* JUMP CMD*/
+			            		rcv_state = (byte) 0x99;
+			            		break;
+			            	case 0x51 :/* CHANGE COM SPEED CMD*/
+			            		rcv_state = (byte) 0x99;
+			            		break;
+		            		case 0x61: /* GET VALUE CMD*/
+		            			rcv_state = (byte) 0x99;
+			            		break;
+		            		case 0x71: /* Write Firmware*/
+		            			rcv_state = (byte) 0x99;
+		            			break; 
+			            	default: 
+			            		rcv_state = 0;
+			            		logText = "Command received not yet implemented (" + new String(new byte[] {singleData}) +")";
+			    		        window.textArea.setForeground(Color.red);
+			    		        window.textArea.append(logText + "\n");
+			            		break;
+		            	}
+		            	
+		            	break;
+		            case 4 : /*Checksum value*/
+		            	rcv_state = 0;
+	            		int inverse = ~bufferChecksum;
+	            		inverse += 1;
+	            		if(inverse != singleData)
+	            		{
+	            			logText = "Checksum doesnt match";
+		    		        window.textArea.setForeground(Color.red);
+		    		        window.textArea.append(logText + "\n");
+	            		}else
+	            		{
+	            			logText = "Checksum match !!!!!";
+		    		        window.textArea.append(logText + "\n");
+	            		}
+	            		
+	            		break;
+		            default:
+		            	break;
+	            }
+	  
 	            logText = new String(new byte[] {singleData});
 	            window.textArea.append(logText);
-	            if(singleData == 119)
-	            	isDataReceive = true;
+
 	            
 	        }
 	        catch (Exception e)
@@ -231,4 +373,93 @@ public class CommunicationClass implements SerialPortEventListener
 	        }
 	     }
 	  }
+
+	public void WriteDeviceName(String wantedDeviceName) throws IOException {
+		// TODO Auto-generated method stub
+		byte[] msg_header = {0x04,0x7C};
+		byte msg_command = 0x10;
+		byte msg_length = (byte) wantedDeviceName.length();
+		byte[] bWantedDeviceName = wantedDeviceName.getBytes();
+		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		out.write(msg_header);
+		out.write(msg_command);
+		out.write(msg_length);
+		out.write(bWantedDeviceName);
+		byte[] bufferForChecksum = out.toByteArray();
+		
+		if(bConnected != false)
+		 {
+			 try
+			 {
+				output.write(msg_header);
+				output.flush();
+	        	Thread.sleep(10);
+	            output.write(msg_command);
+	            output.write(msg_length);
+	            output.flush();
+	            Thread.sleep(10);
+		        output.write(bWantedDeviceName);
+		        output.flush();
+		        Thread.sleep(10);
+		        output.write(calculateChecksum(bufferForChecksum,(short)bufferForChecksum.length));
+		        output.flush();
+			 }
+			 catch (Exception e)
+		     {
+		        logText = "Failed to write data. (" + e.toString() + ")";
+		        window.textArea.setForeground(Color.red);
+		        window.textArea.append(logText + "\n");
+	         }
+		
+		 }
+		
+	}
+	private byte calculateChecksum (byte[] buffer,short size)
+	{
+		byte msg_checksum = 0;
+		
+		for(short i = 0; i < size; i++)
+		{
+			msg_checksum += buffer[i];
+		}
+		int inverse = ~msg_checksum;
+		inverse +=1;
+		return (byte)inverse;
+		
+	}
+	private byte[] swapByteArray(byte[] buffer,int size)
+	{
+		byte[] tmp = Arrays.copyOf(buffer, size);
+		for(int i = 0; i < size ; i+=4)
+		{
+			if(size - i >= 4)
+			{
+				buffer[i] = tmp[i+3];
+				buffer[i+1] = tmp[i+2];
+				buffer[i+2] = tmp[i+1];
+				buffer[i+3] = tmp[i];
+			}else
+			{
+				switch(size - i)
+				{
+				case 1:
+					buffer[i] = tmp[i];
+					break;
+				case 2:
+					buffer[i] = tmp[i+1];
+					buffer[i+1] = tmp[i];
+					break;
+				case 3:
+					buffer[i] = tmp[i+2];
+					buffer[i+1] = tmp[i+1];
+					buffer[i+2] = tmp[i];
+					break;
+				default:
+					break;
+				}
+			}
+		}
+		return buffer;
+	}
+	
 }
