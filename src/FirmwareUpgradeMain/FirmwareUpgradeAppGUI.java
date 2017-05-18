@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 import javax.swing.JTextArea;
+import javax.swing.JTextField;
 
 
 
@@ -69,6 +70,7 @@ public class FirmwareUpgradeAppGUI extends javax.swing.JFrame{
 	byte checksum;
 	int fileLength;
 	byte[] bytesList = null;
+	private String WantedDeviceName = "";
 	public FirmwareUpgradeAppGUI() {
 		initialize();
 		Com = new CommunicationClass(this);
@@ -83,7 +85,7 @@ public class FirmwareUpgradeAppGUI extends javax.swing.JFrame{
 		checksum = 0;
 		fileLength = 0;
 		frame = new JFrame();
-		frame.setBounds(100, 100, 369, 325);
+		frame.setBounds(100, 100, 629, 546);
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		
 		comboBox = new javax.swing.JComboBox();
@@ -162,6 +164,28 @@ public class FirmwareUpgradeAppGUI extends javax.swing.JFrame{
 				}
 			}
 		});
+		
+		JTextArea deviceTextArea = new JTextArea();
+		
+		textField = new JTextField();
+		textField.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent arg0) {
+				WantedDeviceName = textField.getText();
+			}
+		});
+		textField.setColumns(10);
+		
+		JButton btnSendDeviceName = new JButton("Send Device Name");
+		btnSendDeviceName.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				try {
+					Com.WriteDeviceName(WantedDeviceName);
+				} catch (IOException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+			}
+		});
 		GroupLayout groupLayout = new GroupLayout(frame.getContentPane());
 		groupLayout.setHorizontalGroup(
 			groupLayout.createParallelGroup(Alignment.LEADING)
@@ -173,18 +197,25 @@ public class FirmwareUpgradeAppGUI extends javax.swing.JFrame{
 							.addPreferredGap(ComponentPlacement.RELATED)
 							.addComponent(comboBox, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
 							.addGap(28)
-							.addComponent(btnConnect)
-							.addGap(18)
-							.addComponent(btnDisconnect, GroupLayout.PREFERRED_SIZE, 132, GroupLayout.PREFERRED_SIZE))
+							.addComponent(btnConnect))
 						.addGroup(groupLayout.createSequentialGroup()
 							.addGap(9)
+							.addComponent(btnNewFirmware))
+						.addGroup(groupLayout.createSequentialGroup()
+							.addContainerGap()
+							.addComponent(btnSendFirmware))
+						.addGroup(groupLayout.createSequentialGroup()
+							.addContainerGap()
+							.addComponent(deviceTextArea, GroupLayout.PREFERRED_SIZE, 140, GroupLayout.PREFERRED_SIZE)))
+					.addGap(18)
+					.addGroup(groupLayout.createParallelGroup(Alignment.LEADING)
+						.addGroup(groupLayout.createSequentialGroup()
 							.addGroup(groupLayout.createParallelGroup(Alignment.LEADING)
-								.addComponent(btnNewFirmware)
-								.addGroup(groupLayout.createSequentialGroup()
-									.addGap(10)
-									.addComponent(btnSendFirmware)))
-							.addGap(18)
-							.addComponent(textArea, GroupLayout.DEFAULT_SIZE, 203, Short.MAX_VALUE)))
+								.addComponent(textField, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+								.addComponent(btnSendDeviceName))
+							.addPreferredGap(ComponentPlacement.RELATED, 139, Short.MAX_VALUE)
+							.addComponent(textArea, GroupLayout.PREFERRED_SIZE, 193, GroupLayout.PREFERRED_SIZE))
+						.addComponent(btnDisconnect, GroupLayout.PREFERRED_SIZE, 132, GroupLayout.PREFERRED_SIZE))
 					.addContainerGap())
 		);
 		groupLayout.setVerticalGroup(
@@ -196,14 +227,24 @@ public class FirmwareUpgradeAppGUI extends javax.swing.JFrame{
 						.addComponent(comboBox, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
 						.addComponent(btnConnect)
 						.addComponent(btnDisconnect, GroupLayout.PREFERRED_SIZE, 23, GroupLayout.PREFERRED_SIZE))
-					.addGap(18)
-					.addGroup(groupLayout.createParallelGroup(Alignment.BASELINE)
-						.addComponent(textArea, GroupLayout.DEFAULT_SIZE, 223, Short.MAX_VALUE)
+					.addGroup(groupLayout.createParallelGroup(Alignment.LEADING)
 						.addGroup(groupLayout.createSequentialGroup()
-							.addComponent(btnNewFirmware)
-							.addGap(12)
-							.addComponent(btnSendFirmware)))
-					.addContainerGap())
+							.addGap(18)
+							.addGroup(groupLayout.createParallelGroup(Alignment.BASELINE)
+								.addComponent(textArea, GroupLayout.DEFAULT_SIZE, 444, Short.MAX_VALUE)
+								.addGroup(groupLayout.createSequentialGroup()
+									.addComponent(btnNewFirmware)
+									.addGap(7)
+									.addComponent(btnSendFirmware)
+									.addPreferredGap(ComponentPlacement.RELATED, 11, Short.MAX_VALUE)
+									.addComponent(deviceTextArea, GroupLayout.PREFERRED_SIZE, 380, GroupLayout.PREFERRED_SIZE)))
+							.addContainerGap())
+						.addGroup(Alignment.TRAILING, groupLayout.createSequentialGroup()
+							.addGap(394)
+							.addComponent(btnSendDeviceName)
+							.addPreferredGap(ComponentPlacement.RELATED)
+							.addComponent(textField, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+							.addGap(30))))
 		);
 		frame.getContentPane().setLayout(groupLayout);
 	
@@ -211,4 +252,6 @@ public class FirmwareUpgradeAppGUI extends javax.swing.JFrame{
 	@SuppressWarnings("rawtypes")
 	public javax.swing.JComboBox comboBox;
 	public javax.swing.JTextArea textArea;
+	public javax.swing.JTextArea deviceTextArea;
+	private JTextField textField;
 }
